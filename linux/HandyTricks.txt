@@ -1,0 +1,44 @@
+Command-Line Option
+
+You do not need to be an expert to use AES Crypt for Linux to securely encrypt your data files. To encrypt a file, you simply enter the "aescrypt" command with the appropriate command-line arguments.
+
+Suppose you have a file called "picture.jpg" that you would like to encrypt using the password "apples". You would enter the following command:
+
+    aescrypt -e -p apples picture.jpg
+
+That's it! The program will create a file with the name "picture.jpg.aes".
+
+When you want to later decrypt the file "picture.jpg.aes", you would enter the following command:
+
+    aescrypt -d -p apples picture.jpg.aes
+
+The program will create the file "picture.jpg", containing the contents of the original file before it was encrypted.
+
+It can't be any simpler than that!
+
+Of course, many Linux users create sophisticated scripts that pipe input from one program into another, and AES Crypt fully supports such usage. For example, you could backup files and encrypt them with a command like this:
+
+    tar -cvf - /home | aescrypt -e -p apples - >backup_files.tar.aes
+
+In all of the examples above, the password is provided on the command line. Since there are certain risks associated with that kind of usage, it may be preferred to let aescrypt prompt you to enter the password. This can be accomplished simply by not including the -p parameter, like this:
+
+    aescrypt -d picture.jpg.aes
+
+AES Crypt will prompt you for the password, but what you enter will not be displayed on the screen.
+
+What if you want to decrypt a file, but just want to have it displayed on the screen and not stored in a plaintext file? That's possible. To do that, just use this syntax:
+
+    aescrypt -d -o - passwords.txt.aes
+
+AES Crypt for Linux has the ability to use an encryption key file. This more securely allows for automated backups or other system administration tasks where one needs to provide a password, but would prefer to not have it appear on the command-line and clearly cannot be there to enter it. To use a key file, first create a key file using the aescrypt_keygen utility. This program works like "aescrypt", allowing you to enter a password via the -p option or to be prompted for a password. The specified file it the key file. You use it like this:
+
+    aescrypt_keygen -p apples secret.key
+
+Place the file "secret.key" somewhere secure. Then when you wish to encrypt a file, you call AES Crypt like this:
+
+    tar -cvf - /home | aescrypt -e -k secret.key - >backup_files.tar.aes
+
+Be sure to provide the full pathname to the key file.
+
+For those who are curious, the key file is nothing more than a UTF-16LE encoded file containing the password. One can use Notepad on Windows to create a key file. Just save the file using the "Unicode" format when saving. AES Crypt will actually accept either a UTF-16BE or UTF-16LE file as the parameter to -k as long as the byte order mark is preserved. See the Readme.txt in the source files for more details about the key file.
+
