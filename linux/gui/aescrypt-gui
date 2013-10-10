@@ -1,0 +1,182 @@
+#!/usr/bin/perl
+
+use strict;
+use File::Spec;
+use File::Spec::Unix;
+
+my $gnomepid    = `pidof gnome-session`;
+my $kdepid      = `pidof ksmserver`;
+my $xfcepid     = `pidof xfceserver`;
+my $useaptget   = `which apt-get 2>/dev/null`;
+my $useyum      = `which yum 2>/dev/null`;
+my $userpm      = `which rpm 2>/dev/null`;
+my $zenity      = `which zenity 2>/dev/null`;
+my $kdialog     = `which kdialog 2>/dev/null`;
+my $aescrypt    = `which aescrypt 2>/dev/null`;
+my $prefergnome = 0;
+my $preferkde   = 0;
+my $filename;
+my $extension;
+my $direction;
+my $passwordcmd;
+my $errorpwd;
+my $errormsg;
+chomp($gnomepid);
+chomp($kdepid);
+chomp($xfcepid);
+chomp($useaptget);
+chomp($useyum);
+chomp($userpm);
+chomp($zenity);
+chomp($kdialog);
+chomp($aescrypt);
+
+if (@ARGV == 1)
+{
+   $filename  =  File::Spec->rel2abs($ARGV[0]);
+   $extension = substr($filename, length($filename)-4);
+}
+if ($extension =~ /\.aes/i)
+{
+   $direction = "decryption";
+}
+else
+{
+   $direction = "encryption";
+}
+#print "AESCrypt    = '$aescrypt'\n";
+#print "Filename    = '$filename'\n";
+#print "Extension   = '$extension'\n";
+#print "Direction   = '$direction'\n";
+#print "zenity      = '$zenity'\n";
+#print "kdialog     = '$kdialog'\n";
+
+if (($zenity eq "") && ($kdialog eq ""))
+{
+   print "No dialog prompting utility is available\n";
+   if ($useaptget ne "")
+   {
+      print "try running 'apt-get install zenity' as root\n";
+   }
+   elsif ($useyum ne "")
+   {
+      print "try running 'yum install zenity' as root\n";
+   }
+   elsif ($userpm ne "")
+   {
+      print "try running 'rpm install zenity' as root\n";
+   }
+   exit(1);
+}
+if (($gnomepid ne "") && ($zenity ne ""))
+{
+   $prefergnome = 1;
+}
+elsif (($kdepid ne "") && ($kdialog ne ""))
+{
+   $preferkde   = 1;
+}
+elsif ($zenity ne "")
+{
+   $prefergnome = 1;
+}
+else
+{
+   $preferkde   = 1;
+}
+#print "prefergnome = '$prefergnome'\n";
+#print "preferkde   = '$preferkde'\n";
+if ($prefergnome)
+{
+   my $newdialog = `zenity --help | grep 'password' 2>&1`;
+   if ("$newdialog" ne "")
+   {
+      #print "New Zenity dialog\n";
+      $passwordcmd = "zenity --title=AESCrypt --password 2>/dev/null";
+      $errorpwd    = "zenity --title=AESCrypt --timeout=1 --text 'Password not matched' --warning 2>/dev/null";
+   }
+   else
+   {
+      #print "Old Zenity dialog\n";
+      $passwordcmd = "zenity --title=AESCrypt --entry --text='Type your Password' --hide-text 2>/dev/null";
+      $errorpwd    = "zenity --title=AESCrypt --text 'Password not matched' --warning 2>/dev/null";
+   }
+   $errormsg    = "zenity --title=AESCrypt --text 'MessageTextHere' --error 2>/dev/null";
+}
+else
+{
+   $passwordcmd = "kdialog --title AESCrypt --password 'Enter $direction password' 2>/dev/null";
+   $errorpwd    = "kdialog --title AESCrypt --passivepopup 'Password not matched' 1 2>/dev/null";
+   $errormsg    = "kdialog --title AESCrypt --error 'MessageTextHere' 2>/dev/null";
+}
+if (! -x $aescrypt)
+{
+   errorMsg("AESCrypt command is not found");
+   exit(1);
+}
+if (@ARGV != 1)
+{
+   errorMsg("Invalid arguments, a single filename is required");
+   exit(2);
+}
+if (! -f $filename)
+{
+   errorMsg("Invalid arguments, file not found");
+   exit(3);
+}
+my $done     = 0;
+my $password = "";
+while (!$done)
+{
+   #print "$passwordcmd\n";
+   my $password1 = `$passwordcmd`;
+   if ($? != 0)
+   {
+      exit(1);
+   }
+   chomp($password1);
+   #print "$passwordcmd\n";
+   my $password2 = `$passwordcmd`;
+   #print "password   = '$password'\n";
+   if ($? != 0)
+   {
+      exit(1);
+   }
+   chomp($password2);
+   if ($password1 ne $password2)
+   {
+      `$errorpwd`;
+   }
+   else
+   {
+      $password = $password1;
+      $done = 1;
+   }
+}
+my $message = "";
+if ($direction eq "encryption")
+{
+   #print "$aescrypt -e -p $password $filename\n";
+   $message = `$aescrypt -e -p $password $filename 2>&1`;
+}
+else
+{
+   #print "$aescrypt -d -p $password $filename\n";
+   $message = `$aescrypt -d -p $password $filename 2>&1`;
+}
+if ($message ne "")
+{
+   $message =~ s/Error: //;
+   errorMsg("$message");
+}
+
+exit("$?");
+
+
+sub errorMsg
+{
+   my $message = $_[0];
+   $errormsg =~ s/MessageTextHere/$message/;
+   #print "$errormsg\n";
+   `$errormsg`;
+}
