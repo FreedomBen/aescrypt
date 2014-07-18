@@ -5,7 +5,7 @@ DEBUG=1
 usage ()
 {
     cat << __EOF__
-    Usage:  $0 [-e|--encrypt|-d|--decrypt] [-z|--gzip|-J|--xz] [-o output-file] [-p password] {input-file}
+    Usage:  $0 [-e|--encrypt|-d|--decrypt] [-z|--gzip|-J|--xz] [-o output-file] [-p password] [-f|--force] {input-file}
 
     tarcrypt is a handy combination of tar and aescrypt.  It is just a wrapper
     around those two fine programs that makes use of streams for efficiency.
@@ -28,12 +28,14 @@ usage ()
 
         -p password    : The password passed to aescrypt for encryption/decryption
                        : If not specified in the commnand, you'll be prompted for it
+
+        -f | --force   : Overwrite existing files
 __EOF__
 }
 
 die ()
 {
-    echo "ERROR: $1" >&2
+    echo "[ERROR]: $1" >&2
     exit 1
 }
 
@@ -55,6 +57,7 @@ XZ=1
 OF=""
 IF=""
 PASSWORD=""
+NOCLOBBER=1
 
 # UO = User Override
 UO_ENC=0
@@ -67,13 +70,18 @@ for i in "$@"; do
     if [[ "$i" =~ ^\-?\-e ]]; then
         ENCRYPT=1
         UO_ENC=1
-        ARGS=$(echo $ARGS | sed -e 's/-e//g' | sed -e 's/--encrypt//g')
+        ARGS=$(echo $ARGS | sed -e 's/--encrypt//g' | sed -e 's/-e//g')
     fi
 
     if [[ "$i" =~ ^\-?\-d ]]; then
         ENCRYPT=0
         UO_ENC=1
-        ARGS=$(echo $ARGS | sed -e 's/-d//g' | sed -e 's/--decrypt//g')
+        ARGS=$(echo $ARGS | sed -e 's/--decrypt//g' | sed -e 's/-d//g')
+    fi
+
+    if [[ "$i" =~ ^\-?\-f ]]; then
+        NOCLOBBER=0
+        ARGS=$(echo $ARGS | sed -e 's/--force//g' | sed -e 's/-f//g')
     fi
 
     if [[ "$i" =~ ^\-J ]] || [[ "$i" =~ ^\-\-xz ]]; then
@@ -110,13 +118,22 @@ IF="$ARGS"
 
 [ -z "$IF" ] && die "No input filename specified"
 
+(( $(echo "$IF" | wc -w) > 1 )) && die "Multiple input files specified. Does a filename include spaces?  We don't support spaces :-("
 INPUT_FILE=$(echo "$IF" | sed -e 's/ //g')
+
+if (( NOCLOBBER )); then
+    set -o noclobber
+    debug "Force flag not detected, setting noclobber"
+else
+    set +o noclobber
+    debug "Force flag detected, unsetting noclobber"
+fi
 
 debug "Done processing args"
 debug "Settings before inference:  ECRYPT=$ENCRYPT - XZ=$XZ - OF=$OF - IF=$IF - PASSWORD=$PASSWORD"
 
 # if the user hasn't overriden the compression, pick one from input filename or default to xz
-if ! (( UO_XZ )) && $(echo "$INPUT_FILE" | egrep "\.gz"); then
+if ! (( UO_XZ )) && $(echo "$INPUT_FILE" | egrep "\.gz" >/dev/null); then
     XZ=0
     debug "Input file contains .gz extension and user did not specify compression. Assuming gzip"
 fi
@@ -127,7 +144,7 @@ TAR_FLAG="z"
 
 # if user hasn't overridden encryption, derive encryption mode
 # if the input file contains ".aes" then decrypt.  Otherwise encrypt
-if ! (( UO_ENC )) && $(echo "$INPUT_FILE" | egrep "\.aes$"); then
+if ! (( UO_ENC )) && $(echo "$INPUT_FILE" | egrep "\.aes$" >/dev/null); then
     debug "Input file contains .aes extension and user did not specify encryption. Assuming decryption"
     ENCRYPT=0
 fi
