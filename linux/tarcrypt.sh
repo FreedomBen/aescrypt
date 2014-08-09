@@ -156,8 +156,12 @@ fi
 
 if [ -z "$OF" ]; then
     if (( ENCRYPT )); then
-        # If we're encrypting, tack on a .tar.{xz|gz}.aes
-        OUTPUT_FILE="${INPUT_FILE}.tar.${EXT}.aes"
+        # If we're encrypting, tack on a .tar.{xz|gz}.aes after removing any trailing /
+        OF="$INPUT_FILE"
+        if $(echo "$OF" | egrep ".*/$" >/dev/null); then
+            OF=$(echo "$OF" | sed -e 's/\/$//g')
+        fi
+        OUTPUT_FILE="${OF}.tar.${EXT}.aes"
     else
         # If we're decrypting, strip away .tar.{xz|gz}.aes or else append .decrypted
         TMP_OF=$(echo "${INPUT_FILE}" | sed -e "s/\.tar\.${EXT}.aes//g")
