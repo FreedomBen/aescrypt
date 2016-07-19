@@ -17,7 +17,7 @@ CC=gcc
 
 #The below line is for debugging
 #CFLAGS=-I. -ggdb -Wall -D_FILE_OFFSET_BITS=64
-CFLAGS=-Wall -D_FILE_OFFSET_BITS=64
+CFLAGS=-Wall -D_FILE_OFFSET_BITS=64 -static
 
 LIBS=
 
