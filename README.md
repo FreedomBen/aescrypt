@@ -5,4 +5,6 @@ This repository houses the source code for AES Crypt, with some slight modificat
 
 This version will compile to a static binary.  To succeed, Fedora needs these packages installed:
 
-1. glib-static
+1. glibc
+1. glibc-devel
+1. glibc-static
