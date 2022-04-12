@@ -18,9 +18,9 @@ my $preferkde   = 0;
 my $filename;
 my $extension;
 my $direction;
-my $passwordcmd;
-my $errorpwd;
-my $errormsg;
+my @passwordcmd;
+my @errormsg;
+my @warningmsg;
 chomp($gnomepid);
 chomp($kdepid);
 chomp($xfcepid);
@@ -31,18 +31,18 @@ chomp($zenity);
 chomp($kdialog);
 chomp($aescrypt);
 
-if (@ARGV == 1)
-{
+if (@ARGV == 1) {
    $filename  =  File::Spec->rel2abs($ARGV[0]);
    $extension = substr($filename, length($filename)-4);
 }
-if ($extension =~ /\.aes/i)
-{
-   $direction = "decryption";
-}
-else
-{
-   $direction = "encryption";
+
+# automatically choose decryption for files ending in ".aes".
+if ($extension =~ /\.aes$/i) {
+  print "Selected decryption for AES file\n";
+  $direction = "decryption";
+} else {
+  print "Selected encryption for non-AES file\n";
+  $direction = "encryption";
 }
 #print "AESCrypt    = '$aescrypt'\n";
 #print "Filename    = '$filename'\n";
@@ -51,132 +51,152 @@ else
 #print "zenity      = '$zenity'\n";
 #print "kdialog     = '$kdialog'\n";
 
-if (($zenity eq "") && ($kdialog eq ""))
-{
-   print "No dialog prompting utility is available\n";
-   if ($useaptget ne "")
-   {
-      print "try running 'apt-get install zenity' as root\n";
-   }
-   elsif ($useyum ne "")
-   {
-      print "try running 'yum install zenity' as root\n";
-   }
-   elsif ($userpm ne "")
-   {
-      print "try running 'rpm install zenity' as root\n";
-   }
-   exit(1);
-}
-if (($gnomepid ne "") && ($zenity ne ""))
-{
-   $prefergnome = 1;
-}
-elsif (($kdepid ne "") && ($kdialog ne ""))
-{
-   $preferkde   = 1;
-}
-elsif ($zenity ne "")
-{
-   $prefergnome = 1;
-}
-else
-{
-   $preferkde   = 1;
+if (($zenity eq "") && ($kdialog eq "")) {
+  print "No dialog prompting utility is available\n";
+  if ($useaptget ne "") {
+    print "try running 'apt-get install zenity' as root\n";
+  } elsif ($useyum ne "") {
+    print "try running 'yum install zenity' as root\n";
+  } elsif ($userpm ne "") {
+    print "try running 'rpm install zenity' as root\n";
+  }
+  exit(1);
+} if (($gnomepid ne "") && ($zenity ne "")) {
+  $prefergnome = 1;
+} elsif (($kdepid ne "") && ($kdialog ne "")) {
+  $preferkde   = 1;
+} elsif ($zenity ne "") {
+  $prefergnome = 1;
+} else {
+  $preferkde   = 1;
 }
 #print "prefergnome = '$prefergnome'\n";
 #print "preferkde   = '$preferkde'\n";
-if ($prefergnome)
-{
-   my $newdialog = `zenity --help | grep 'password' 2>&1`;
-   if ("$newdialog" ne "")
-   {
-      #print "New Zenity dialog\n";
-      $passwordcmd = "zenity --title=AESCrypt --password 2>/dev/null";
-      $errorpwd    = "zenity --title=AESCrypt --timeout=1 --text 'Password not matched' --warning 2>/dev/null";
-   }
-   else
-   {
-      #print "Old Zenity dialog\n";
-      $passwordcmd = "zenity --title=AESCrypt --entry --text='Type your Password' --hide-text 2>/dev/null";
-      $errorpwd    = "zenity --title=AESCrypt --text 'Password not matched' --warning 2>/dev/null";
-   }
-   $errormsg    = "zenity --title=AESCrypt --text 'MessageTextHere' --error 2>/dev/null";
+
+if ($prefergnome) {
+  print "Preferring Zenity\n";
+  my $newdialog = `zenity --help | grep 'password' 2>&1`;
+  # ("--width=350", "--no-wrap") are added to zenity calls as a workaround to 
+  # https://bugs.launchpad.net/ubuntu/+source/zenity/+bug/1273981
+  if ("$newdialog" ne "") {
+    print "New Zenity dialog\n";
+    @passwordcmd = ("zenity", "--title=AESCrypt", "--password");
+    @warningmsg  = ("zenity", "--title=AESCrypt", "--width=350", "--no-wrap", "--timeout=1", "--warning", "--text");
+  } else {
+    print "Old Zenity dialog\n";
+    @passwordcmd = ("zenity", "--title=AESCrypt", "--entry", "--text='Type your Password'", "--hide-text");
+    @warningmsg  = ("zenity", "--title=AESCrypt", "--width=350", "--no-wrap", "--warning", "--text");
+  }
+  @errormsg    = ("zenity", "--title=AESCrypt", "--width=350", "--no-wrap", "--error", "--text");
+} else {
+  print "Preferring KDialog\n";
+  @passwordcmd = ("kdialog", "--title", "AESCrypt", "--password", "Enter $direction password");
+  @warningmsg  = ("kdialog", "--title", "AESCrypt", "--passivepopup");
+  @errormsg    = ("kdialog", "--title", "AESCrypt", "--error");
 }
-else
-{
-   $passwordcmd = "kdialog --title AESCrypt --password 'Enter $direction password' 2>/dev/null";
-   $errorpwd    = "kdialog --title AESCrypt --passivepopup 'Password not matched' 1 2>/dev/null";
-   $errormsg    = "kdialog --title AESCrypt --error 'MessageTextHere' 2>/dev/null";
+if (! -x $aescrypt) {
+  errorMsg("AESCrypt command is not found");
+  exit(1);
 }
-if (! -x $aescrypt)
-{
-   errorMsg("AESCrypt command is not found");
-   exit(1);
+if (@ARGV != 1) {
+  errorMsg("Invalid arguments, a single filename is required");
+  exit(2);
 }
-if (@ARGV != 1)
-{
-   errorMsg("Invalid arguments, a single filename is required");
-   exit(2);
+if (! -f $filename) {
+  errorMsg("Invalid arguments, file not found");
+  exit(3);
 }
-if (! -f $filename)
-{
-   errorMsg("Invalid arguments, file not found");
-   exit(3);
-}
-my $done     = 0;
+
 my $password = "";
-while (!$done)
-{
-   #print "$passwordcmd\n";
-   my $password1 = `$passwordcmd`;
-   if ($? != 0)
-   {
-      exit(1);
-   }
-   chomp($password1);
-   #print "$passwordcmd\n";
-   my $password2 = `$passwordcmd`;
-   #print "password   = '$password'\n";
-   if ($? != 0)
-   {
-      exit(1);
-   }
-   chomp($password2);
-   if ($password1 ne $password2)
-   {
-      `$errorpwd`;
-   }
-   else
-   {
-      $password = $password1;
-      $done = 1;
-   }
-}
-my $message = "";
-if ($direction eq "encryption")
-{
-   #print "$aescrypt -e -p $password $filename\n";
-   $message = `$aescrypt -e -p $password $filename 2>&1`;
-}
-else
-{
-   #print "$aescrypt -d -p $password $filename\n";
-   $message = `$aescrypt -d -p $password $filename 2>&1`;
-}
-if ($message ne "")
-{
-   $message =~ s/Error: //;
-   errorMsg("$message");
+while (1) {
+  my ($result, $passmatch);
+
+  # Get the password.
+  ($result, $password) = execute(@passwordcmd);
+  if ($result != 0) {
+     exit(1);
+  }
+  chomp($password);
+
+  if ($password eq "") {
+    warnMsg("No password was supplied!\n\nPlease re-enter password.");
+    next;
+  }
+
+  # If we're decrypting, we don't need to get a password match, we can just try it.
+  if ($direction eq "decryption") {
+    print "Decrypting; no password match required.\n";
+    last;
+  }
+
+  # Otherwise, the user should retype.
+  ($result, $passmatch) = execute(@passwordcmd);
+  if ($result != 0) {
+    exit(1);
+  }
+  chomp($passmatch);
+  if ($password ne $passmatch) {
+    warnMsg("Encryption passwords did not match.\n\nPlease re-enter password.");
+    $password = "";
+  } else { last; } # We matched, we're finished getting the password.
 }
 
-exit("$?");
+# Perform the actual encryption.
+my ($encres, $encout) = execute($aescrypt, 
+                               ($direction=~m/^enc/?"-e":"-d"),
+                               "-p", $password, $filename);
+if ($encres) {
+   chomp($encout);
+   errorMsg("An error occurred during $direction:\n\n$encout");
+}
+exit($encres);
 
+# Display a warning dialog
+sub warnMsg {
+  my $message = $_[0];
+  my ($result, $out) = execute(@warningmsg, $message);
+  unless ($result == "0") {
+    warn "Warning: $message\n";
+    warn "Additionally, an error occurred while attempting to show this warning:\n";
+    warn "$out\n";
+  }
+}
 
-sub errorMsg
-{
-   my $message = $_[0];
-   $errormsg =~ s/MessageTextHere/$message/;
-   #print "$errormsg\n";
-   `$errormsg`;
+# Display an error dialog
+sub errorMsg {
+  my $message = $_[0];
+  my ($result, $out) = execute(@errormsg, $message);
+  unless ($result == 0) {
+    warn "Error: $message\n";
+    warn "Additionally, an error occurred while attempting to show this error:\n";
+    warn "$out\n";
+  }
+}
+
+# Execute runs the specified command, returning an array of [resultCode, output].
+sub execute {
+  my $command = shift;
+  my (@args) = @_;
+
+  # Encapsulate all the runargs in single quotes and push them onto an argset.
+  my @runargs = ();
+  for my $arg (@args) {
+    my $quotedArg="'";
+    my $escaped=0;
+    for my $c (split //, $arg) {
+      # escape all existing quotes.
+      if ($c eq "'") {
+        # Close squo (main) string, escape, squo, then char will reopen squo string
+        # This allows users to use any character within their passwords.
+        $quotedArg .= '\'\\\'';
+      }
+      $quotedArg .= $c;
+    }
+    push(@runargs, $quotedArg . "'");
+  }
+  my $allargs=join(' ',@runargs);
+  my $out=qx($command $allargs 2>/dev/null);
+  my $result=$?;
+
+  return ($result, $out);
 }

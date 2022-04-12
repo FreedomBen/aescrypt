@@ -1,12 +1,8 @@
 [Desktop Entry]
-Encoding=UTF-8
 Name=AESCrypt
-Tooltip=Encrypt or Decrypt a file using AESCrypt 
 Comment=Encrypt or Decrypt a file using AESCrypt
 Exec=/usr/bin/aescrypt-gui %f
-ExecutionMode=normal
 Type=Application
 Icon=/usr/share/aescrypt/SmallLock.png
 Categories=Application;Utility;TextEditor;
-MimeType=all/allfiles;
-Enabled=true
+MimeType=application/octet-stream;
