@@ -1,0 +1,59 @@
+.TH AESCRYPT_KEYGEN 1  "January 30, 2022" "AES Crypt Tools" "User Commands"
+
+.SH NAME
+
+.B aescrypt_keygen
+\- AES Crypt Key Generator creates keyfile files for use with \fBaescrypt\fR.
+
+.SH SYNOPSIS
+
+.SY
+.B aescrypt_keygen
+[\ {\ \-g\ <password\ length>\ |\ \-p\ <password>\ }\ ] \fI<keyfile>\fR
+.YS
+
+.SH DESCRIPTION
+
+.B aescrypt_keygen
+is used to create a keyfile that contains a password (or "key") used to
+encrypt or decrypt files using \fBaescrypt\fR.  Use of a keyfile is most
+useful in automated processing, such as backup software or encryption
+performed before uploading files to cloud storage.
+
+.SH OPTIONS
+
+.B \-g\ <password\ length>
+.RS
+Used to generate keys of the specified length.  Ideally, this should be
+at least 43 in order to yield roughly 256 bits of entropy (randomness).
+However, longer keys are recommended (e.g., 384), as longer keys provide even
+more entropy and do not introduce any noticable overhead.
+.RE
+
+.B \-p\ <password>
+.RS
+Take a user-provided password to be stored in the given keyfile.
+.RE
+
+.SH AUTHOR
+
+AES Crypt Key Generator was written by Paul E. Jones <paulej@packetizer.com>.
+Additionally, several other people have contributed to the Linux source code,
+notably Glenn Washburn <crass@berlios.de> and
+Mauro Gilardi <galvao.m@gmail.com>.
+
+.SH SEE ALSO
+
+For more complete documentation or to download the most recent version of the
+software, visit https://www.aescrypt.com/.
+
+.SH COPYRIGHT
+
+This software is licensed as "freeware."  Permission to distribute this
+software in source and binary forms is hereby granted without a fee.  THIS
+SOFTWARE IS PROVIDED 'AS IS' AND WITHOUT ANY EXPRESSED OR IMPLIED WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE.  THE AUTHOR SHALL NOT BE HELD LIABLE FOR ANY
+DAMAGES RESULTING FROM THE USE OF THIS SOFTWARE, EITHER DIRECTLY OR INDIRECTLY,
+INCLUDING, BUT NOT LIMITED TO, LOSS OF DATA OR DATA BEING RENDERED INACCURATE.
+

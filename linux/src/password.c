@@ -1,73 +1,118 @@
 /*
- * AES Crypt for Linux
- * Copyright (C) 2007, 2008, 2009, 2013
+ *  password.c
  *
- * Contributors:
- *     Glenn Washburn <crass@berlios.de>
- *     Paul E. Jones <paulej@packetizer.com>
- *     Mauro Gilardi <galvao.m@gmail.com>
+ *  Password Utilities for AES Crypt
+ *  Copyright (C) 2022
+ *  Paul E. Jones <paulej@packetizer.com>
  *
- * This software is licensed as "freeware."  Permission to distribute
- * this software in source and binary forms is hereby granted without a
- * fee.  THIS SOFTWARE IS PROVIDED 'AS IS' AND WITHOUT ANY EXPRESSED OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * THE AUTHOR SHALL NOT BE HELD LIABLE FOR ANY DAMAGES RESULTING FROM
- * THE USE OF THIS SOFTWARE, EITHER DIRECTLY OR INDIRECTLY, INCLUDING,
- * BUT NOT LIMITED TO, LOSS OF DATA OR DATA BEING RENDERED INACCURATE.
+ *  Description:
+ *      Password utilities for AES Crypt.
  *
+ *  Portability Issues:
+ *      None.
  */
+
+#define _POSIX_C_SOURCE 200809L
 
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#include <unistd.h> // getopt
-#include <stdlib.h> // malloc
-#include <iconv.h> // iconv stuff
+#include <unistd.h>   // getopt
+#include <stdlib.h>   // malloc
+#include <locale.h>   // setlocale
+#include <iconv.h>    // iconv
 #include <langinfo.h> // nl_langinfo
-#include <errno.h> // errno
-#include <termios.h> // tcgetattr,tcsetattr
+#include <errno.h>    // errno
+#include <termios.h>  // tcgetattr,tcsetattr
 
 #include "password.h"
+#include "util.h"
 
 /*
  *  read_password_error
  *
- *  Returns the description of the error when reading the password.
+ *  Description:
+ *      Returns the description of the error when reading the password.
+ *
+ *  Parameters:
+ *      error [in]
+ *          An error code indicating the error for which the associated string
+ *          should be returned.
+ *
+ *  Returns:
+ *      A pointer to the character string associated with the given error code.
+ *
+ *  Comments:
+ *      None.
  */
 const char* read_password_error(int error)
 {
-    if (error == AESCRYPT_READPWD_FOPEN)
-        return "fopen()";
-    if (error == AESCRYPT_READPWD_FILENO)
-        return "fileno()";
-    if (error == AESCRYPT_READPWD_TCGETATTR)
-        return "tcgetattr()";
-    if (error == AESCRYPT_READPWD_TCSETATTR)
-        return "tcsetattr()";
-    if (error == AESCRYPT_READPWD_FGETC)
-        return "fgetc()";
-    if (error == AESCRYPT_READPWD_TOOLONG)
-        return "password too long";
-    if (error == AESCRYPT_READPWD_NOMATCH)
-        return "passwords don't match";
-    return "No valid error code specified!!!";
+    const char *error_string;
+
+    switch(error)
+    {
+        case AESCRYPT_READPWD_NONE:
+            error_string = "password not provided";
+            break;
+
+        case AESCRYPT_READPWD_FOPEN:
+            error_string = "fopen()";
+            break;
+
+        case AESCRYPT_READPWD_FILENO:
+            error_string = "fileno()";
+            break;
+
+        case AESCRYPT_READPWD_TCGETATTR:
+            error_string = "tcgetattr()";
+            break;
+
+        case AESCRYPT_READPWD_TCSETATTR:
+            error_string = "tcsetattr()";
+            break;
+
+        case AESCRYPT_READPWD_FGETC:
+            error_string = "fgetc()";
+            break;
+
+        case AESCRYPT_READPWD_TOOLONG:
+            error_string = "password too long";
+            break;
+
+        case AESCRYPT_READPWD_NOMATCH:
+            error_string = "passwords don't match";
+            break;
+
+        default:
+            error_string = "No valid error code specified";
+            break;
+    }
+
+    return error_string;
 }
 
 /*
  *  read_password
  *
- *  This function reads at most 'MAX_PASSWD_LEN'-1 characters
- *  from the TTY with echo disabled, putting them in 'buffer'.
- *  'buffer' MUST BE ALREADY ALLOCATED!!!
- *  When mode is ENC the function requests password confirmation.
+ *  Description:
+ *      This function reads at most 'MAX_PASSWD_LEN'-1 characters
+ *      from the TTY with echo disabled, putting them in 'buffer'.
+ *      'buffer' MUST BE ALREADY ALLOCATED!!!
+ *      When mode is ENC the function requests password confirmation.
  *
- *  Return value:
- *    >= 0 the password length (0 if empty password is in input)
- *    < 0 error (return value indicating the specific error)
+ *  Parameters:
+ *      buffer [in]
+ *          Buffer into which the password is read.
+ *
+ *      mode [in]
+ *          Indicated whether we are encrypting or decrypting, controlling
+ *          whether the password is requested a second time for verification.
+ *
+ *  Returns:
+ *      >= 0 the password length (0 if empty password is in input)
+ *      < 0 error (return value indicating the specific error)
  */
-
 int read_password(unsigned char* buffer, encryptmode_t mode)
 {
     struct termios t;                   // Used to set ECHO attribute
@@ -93,7 +138,7 @@ int read_password(unsigned char* buffer, encryptmode_t mode)
     {
         return AESCRYPT_READPWD_FILENO;
     }
- 
+
     // Get the tty attrs
     if (tcgetattr(tty, &t) < 0)
     {
@@ -130,8 +175,8 @@ int read_password(unsigned char* buffer, encryptmode_t mode)
             if (tcsetattr(tty, TCSANOW, &t) < 0)
             {
                 // For security reasons, erase the password
-                memset(buffer, 0, MAX_PASSWD_BUF);
-                memset(pwd_confirm, 0, MAX_PASSWD_BUF);
+                secure_erase(buffer, MAX_PASSWD_BUF);
+                secure_erase(pwd_confirm, MAX_PASSWD_BUF);
                 fclose(ftty);
                 return AESCRYPT_READPWD_TCSETATTR;
             }
@@ -147,9 +192,12 @@ int read_password(unsigned char* buffer, encryptmode_t mode)
         while (((c = fgetc(ftty)) != '\n') && (c != EOF))
         {
             // fill buffer till MAX_PASSWD_LEN
-            if (chars_read <= MAX_PASSWD_LEN)
-                p[chars_read] = (char) c;
-            chars_read++;
+            if (chars_read <= MAX_PASSWD_LEN+1)
+            {
+                if (chars_read <= MAX_PASSWD_LEN)
+                    p[chars_read] = (char) c;
+                chars_read++;
+            }
         }
 
         if (chars_read <= MAX_PASSWD_LEN)
@@ -166,8 +214,8 @@ int read_password(unsigned char* buffer, encryptmode_t mode)
             if (tcsetattr(tty, TCSANOW, &t) < 0)
             {
                 // For security reasons, erase the password
-                memset(buffer, 0, MAX_PASSWD_BUF);
-                memset(pwd_confirm, 0, MAX_PASSWD_BUF);
+                secure_erase(buffer, MAX_PASSWD_BUF);
+                secure_erase(pwd_confirm, MAX_PASSWD_BUF);
                 fclose(ftty);
                 return AESCRYPT_READPWD_TCSETATTR;
             }
@@ -177,8 +225,8 @@ int read_password(unsigned char* buffer, encryptmode_t mode)
         if (c == EOF)
         {
             // For security reasons, erase the password
-            memset(buffer, 0, MAX_PASSWD_BUF);
-            memset(pwd_confirm, 0, MAX_PASSWD_BUF);
+            secure_erase(buffer, MAX_PASSWD_BUF);
+            secure_erase(pwd_confirm, MAX_PASSWD_BUF);
             fclose(ftty);
             return AESCRYPT_READPWD_FGETC;
         }
@@ -188,8 +236,8 @@ int read_password(unsigned char* buffer, encryptmode_t mode)
         if (chars_read > MAX_PASSWD_LEN)
         {
             // For security reasons, erase the password
-            memset(buffer, 0, MAX_PASSWD_BUF);
-            memset(pwd_confirm, 0, MAX_PASSWD_BUF);
+            secure_erase(buffer, MAX_PASSWD_BUF);
+            secure_erase(pwd_confirm, MAX_PASSWD_BUF);
             fclose(ftty);
             return AESCRYPT_READPWD_TOOLONG;
         }
@@ -203,12 +251,12 @@ int read_password(unsigned char* buffer, encryptmode_t mode)
     {
         // Check if passwords match
         match = strcmp((char*)buffer, (char*)pwd_confirm);
-        memset(pwd_confirm, 0, MAX_PASSWD_BUF);
+        secure_erase(pwd_confirm, MAX_PASSWD_BUF);
 
         if (match != 0)
         {
             // For security reasons, erase the password
-            memset(buffer, 0, MAX_PASSWD_BUF);
+            secure_erase(buffer, MAX_PASSWD_BUF);
             return AESCRYPT_READPWD_NOMATCH;
         }
     }
@@ -219,7 +267,27 @@ int read_password(unsigned char* buffer, encryptmode_t mode)
 /*
  *  passwd_to_utf16
  *
- *  Convert String to UTF-16LE for windows compatibility
+ *  Description:
+ *      Convert String to UTF-16LE for windows compatibility.
+ *
+ *  Parameters:
+ *      in_passwd [in]
+ *          The password in the encoding for the current locale.
+ *
+ *      length [in]
+ *          The length of the password in octets.
+ *
+ *      max_length [in]
+ *          The maximum length of the converted password in octets.
+ *
+ *      out_password [in]
+ *          The password converted to UTF-16LE.
+ *
+ *  Returns:
+ *      The length in octets of the converted password.
+ *
+ *  Comments:
+ *      None.
  */
 int passwd_to_utf16(unsigned char *in_passwd,
                     int length,
@@ -232,16 +300,18 @@ int passwd_to_utf16(unsigned char *in_passwd,
     size_t ic_inbytesleft,
            ic_outbytesleft;
 
-    /* Max length is specified in character, but this function deals
-     * with bytes.  So, multiply by two since we are going to create a
-     * UTF-16 string.
-     */
+    // Max length is specified in character, but this function deals
+    // with bytes.  So, multiply by two since we are going to create a
+    // UTF-16 string.
     max_length *= 2;
 
     ic_inbuf = in_passwd;
     ic_inbytesleft = length;
     ic_outbytesleft = max_length;
     ic_outbuf = out_passwd;
+
+    // Set the locale based on the current environment
+    setlocale(LC_CTYPE,"");
 
     if ((condesc = iconv_open("UTF-16LE", nl_langinfo(CODESET))) ==
         (iconv_t)(-1))
@@ -251,10 +321,10 @@ int passwd_to_utf16(unsigned char *in_passwd,
     }
 
     if (iconv(condesc,
-              (char **) &ic_inbuf,
+              (char ** const) &ic_inbuf,
               &ic_inbytesleft,
-              (char **) &ic_outbuf,
-              &ic_outbytesleft) == -1)
+              (char ** const) &ic_outbuf,
+              &ic_outbytesleft) == (size_t) -1)
     {
         switch (errno)
         {
@@ -264,14 +334,19 @@ int passwd_to_utf16(unsigned char *in_passwd,
                 return -1;
                 break;
             default:
-                //~ printf("EILSEQ(%d), EINVAL(%d), %d\n", EILSEQ, EINVAL, errno);
-                fprintf(stderr,
-                        "Error: Invalid or incomplete multibyte sequence\n");
+                /*
+                printf("\nEILSEQ(%d), EINVAL(%d), %d\n",
+                       EILSEQ,
+                       EINVAL,
+                       errno);
+                */
+                perror("Password conversion error");
                 iconv_close(condesc);
                 return -1;
         }
     }
+
     iconv_close(condesc);
+
     return (max_length - ic_outbytesleft);
 }
-

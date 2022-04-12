@@ -1,21 +1,19 @@
 /*
- * aescrypt.h
+ *  aescrypt.h
  *
- * Copyright (C) 2007, 2008, 2009, 2013
+ *  AES Crypt Command-Line Encryption Tool
+ *  Copyright (C) 2022
+ *  Paul E. Jones <paulej@packetizer.com>
  *
- * This software is licensed as "freeware."  Permission to distribute
- * this software in source and binary forms is hereby granted without a
- * fee.  THIS SOFTWARE IS PROVIDED 'AS IS' AND WITHOUT ANY EXPRESSED OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * THE AUTHOR SHALL NOT BE HELD LIABLE FOR ANY DAMAGES RESULTING FROM
- * THE USE OF THIS SOFTWARE, EITHER DIRECTLY OR INDIRECTLY, INCLUDING,
- * BUT NOT LIMITED TO, LOSS OF DATA OR DATA BEING RENDERED INACCURATE.
+ *  Description:
+ *      This is the main module for the command-line version of AES Crypt.
  *
+ *  Portability Issues:
+ *      None.
  */
 
-#ifndef __AESCRYPT_H__
-#define __AESCRYPT_H__
+#ifndef AESCRYPT_H
+#define AESCRYPT_H
 
 #include "aes.h"
 #include "sha256.h"
@@ -28,4 +26,8 @@ typedef struct {
 
 typedef unsigned char sha256_t[32];
 
-#endif // __AESCRYPT_H__
+#define AES_CRYPT_MAX_PATH 1024
+#define AES_CRYPT_EXTENSION ".aes"
+#define AES_CRYPT_EXTENSION_LEN 4
+
+#endif // AESCRYPT_H

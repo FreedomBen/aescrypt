@@ -1,31 +1,47 @@
 /*
- * keyfile.c
- * Copyright (C) 2012, 2013
- * Paul E. Jones <paulej@packetizer.com>
+ *  keyfile.c
  *
- * Read the encryption key from a key file
+ *  Key File Utility Functions for AES Crypt
+ *  Copyright (C) 2022
+ *  Paul E. Jones <paulej@packetizer.com>
+ *
+ *  Description:
+ *      Key file utility functions for AES Crypt.
+ *
+ *  Portability Issues:
+ *      None.
  */
+
+#define _POSIX_C_SOURCE 200809L
 
 #include <stdio.h>
 #include "password.h"
 #include "keyfile.h"
+#include "util.h"
 
 /*
- * ReadKeyFile
+ *  ReadKeyFile
  *
- * This function will read the password from the specified key file.
+ *  Description:
+ *      This function will read the password from the specified key file.
  *
- * Parameters:
- *     keyfile [in] - The pathname of the file to read
- *     pass [out] - A pre-allocated buffer to hold the password
+ *  Parameters:
+ *      keyfile [in]
+ *          The pathname of the file to read
  *
- * Returns:
- *     The length of the password or a negative value if there was an error.
+ *      pass [out]
+ *          A pre-allocated buffer to hold the password
+ *
+ *  Returns:
+ *      The length of the password or a negative value if there was an error.
+ *
+ *  Comments:
+ *      None.
  */
 int ReadKeyFile(char *keyfile, unsigned char *pass)
 {
     FILE *fp = NULL;
-    int bytes_read;
+    size_t bytes_read;
     char temp;
     int endian = KF_UNK;
     unsigned char buffer[2];
@@ -44,6 +60,7 @@ int ReadKeyFile(char *keyfile, unsigned char *pass)
     {
         fprintf(stderr, "Error: unable to read the BOM\n");
         fclose(fp);
+        secure_erase(buffer, 2);
         return -1;
     }
 
@@ -64,6 +81,7 @@ int ReadKeyFile(char *keyfile, unsigned char *pass)
     {
         fprintf(stderr, "Error: key file does not have a valid BOM\n");
         fclose(fp);
+        secure_erase(buffer, sizeof(buffer));
         return -1;
     }
 
@@ -75,6 +93,7 @@ int ReadKeyFile(char *keyfile, unsigned char *pass)
         {
             fprintf(stderr, "Error: Keyfile has an odd number of octets\n");
             fclose(fp);
+            secure_erase(buffer, sizeof(buffer));
             return -1;
         }
 
@@ -99,14 +118,17 @@ int ReadKeyFile(char *keyfile, unsigned char *pass)
         {
             fprintf(stderr, "Error: password in keyfile is too long\n");
             fclose(fp);
+            secure_erase(buffer, sizeof(buffer));
             return -1;
         }
         *pass++ = buffer[0];
         *pass++ = buffer[1];
     }
 
+    // Erase the contents of the buffer array
+    secure_erase(buffer, sizeof(buffer));
+
     fclose(fp);
 
     return passlen;
 }
-

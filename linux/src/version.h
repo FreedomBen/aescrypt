@@ -1,24 +1,22 @@
 /*
- * version.h
+ *  version.h
  *
- * Copyright (C) 2007, 2008, 2009, 2012, 2013
+ *  Version Information for AES Crypt
+ *  Copyright (C) 2022
+ *  Paul E. Jones <paulej@packetizer.com>
  *
- * This software is licensed as "freeware."  Permission to distribute
- * this software in source and binary forms is hereby granted without a
- * fee.  THIS SOFTWARE IS PROVIDED 'AS IS' AND WITHOUT ANY EXPRESSED OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * THE AUTHOR SHALL NOT BE HELD LIABLE FOR ANY DAMAGES RESULTING FROM
- * THE USE OF THIS SOFTWARE, EITHER DIRECTLY OR INDIRECTLY, INCLUDING,
- * BUT NOT LIMITED TO, LOSS OF DATA OR DATA BEING RENDERED INACCURATE.
+ *  Description:
+ *      Module to provide miscellanous utility functions for AES Crypt.
  *
+ *  Portability Issues:
+ *      None.
  */
 
-#ifndef __AESCRYPT_VERSION_H__
-#define __AESCRYPT_VERSION_H__
+#ifndef AESCRYPT_VERSION_H
+#define AESCRYPT_VERSION_H
 
 #define PROG_NAME       "aescrypt"
-#define PROG_VERSION    "3.0.9"
-#define PROG_DATE       "March 9, 2013"
+#define PROG_VERSION    "3.16"
+#define PROG_DATE       "January 30, 2022"
 
-#endif // __AESCRYPT_VERSION_H__
+#endif // AESCRYPT_VERSION_H
